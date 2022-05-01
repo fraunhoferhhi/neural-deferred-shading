@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="description"
+        content="Neural Deferred Shading for fast multi-view 3D reconstruction.">
+  <meta name="keywords" content="Neural, Multi-View, Reconstruction, Mesh, Shading">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Multi-View Mesh Reconstruction with Neural Deferred Shading</title>
+
+  <!-- Meta data for Twitter-->
+	<meta name="twitter:card" content="summary"> <!-- summary_large_image -->
+	<meta name="twitter:creator" content="@MarkusWorchel">
+	<meta name="twitter:title" content="Multi-View Mesh Reconstruction with Neural Deferred Shading">
+	<meta name="twitter:description" content="A new method for fast multi-view 3D reconstruction of triangle meshes using neural shading.">
+	<!--<meta name="twitter:image" content="...">-->
+
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro"
+        rel="stylesheet">
+
+  <link rel="stylesheet" href="./static/css/bulma.min.css">
+  <link rel="stylesheet" href="./static/css/bulma-carousel.min.css">
+  <link rel="stylesheet" href="./static/css/bulma-slider.min.css">
+  <link rel="stylesheet" href="./static/css/fontawesome.all.min.css">
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  <link rel="stylesheet" href="./static/css/index.css">
+  <!-- <link rel="icon" href="./static/images/icon.png"> -->
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script defer src="./static/js/fontawesome.all.min.js"></script>
+  <script src="./static/js/bulma-carousel.min.js"></script>
+  <script src="./static/js/bulma-slider.min.js"></script>
+  <script src="./static/js/index.js"></script>
+</head>
+<body>
+
+<nav class="navbar" role="navigation" aria-label="main navigation">
+  <div class="navbar-brand">
+    <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false">
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
+      <span aria-hidden="true"></span>
+    </a>
+  </div>
+  <div class="navbar-menu">
+    <div class="navbar-start" style="flex-grow: 1; justify-content: center;">
+      <a class="navbar-item" href="https://github.com/mworchel">
+      <span class="icon">
+          <i class="fas fa-home"></i>
+      </span>
+      </a>
+
+      <!-- <div class="navbar-item has-dropdown is-hoverable">
+        <a class="navbar-link">
+          More Research
+        </a>
+        <div class="navbar-dropdown">
+          <a class="navbar-item" href=".">
+            ...
+          </a>
+          <a class="navbar-item" href=".">
+            ...
+          </a>
+        </div>
+      </div> -->
+    </div>
+
+  </div>
+</nav>
+
+
+<section class="hero">
+  <div class="hero-body">
+    <div class="container is-max-desktop">
+      <div class="columns is-centered">
+        <div class="column has-text-centered">
+          <h1 class="title is-1 publication-title">Multi-View Mesh Reconstruction with Neural Deferred Shading</h1>
+          <div class="is-size-5 publication-authors">
+            <span class="author-block">
+              <a href="https://github.com/mworchel">Markus Worchel</a><sup>*</sup><sup>1,2</sup>,</span>
+            <span class="author-block">
+              Rodrigo Diaz<sup>*</sup><sup>1,3</sup>,</span>
+            <span class="author-block">
+              Weiwen Hu<sup>1</sup>,
+            </span>
+            <span class="author-block">
+              <a href="https://www.hhi.fraunhofer.de/en/departments/vit/research-groups/immersive-media-communication/team/schreer.html">Oliver Schreer</a><sup>1</sup>,
+            </span>
+            <span class="author-block">
+              <a href="https://www.hhi.fraunhofer.de/en/departments/vit/research-groups/immersive-media-communication/team/feldmann.html">Ingo Feldmann</a><sup>1</sup>,
+            </span>
+            <span class="author-block">
+              <a href="http://iphome.hhi.de/eisert/index.htm">Peter Eisert</a><sup>1,4</sup>,
+            </span>
+          </div>
+
+          <div class="is-size-5 publication-authors">
+            <span class="author-block"><sup>*</sup>Equal contribution</span>
+          </div>
+
+          <div class="is-size-5 publication-authors">
+            <span class="author-block"><sup>1</sup>Fraunhofer Heinrich-Hertz-Institute,</span>
+            <span class="author-block"><sup>2</sup>Technical University of Berlin,</span>
+            <span class="author-block"><sup>3</sup>Queen Mary University of London,</span>
+            <span class="author-block"><sup>4</sup>Humboldt University of Berlin</span>
+          </div>
+
+          <div class="is-size-5 publication-authors">
+            <b>CVPR 2022</b>
+          </div>
+
+          <div class="column has-text-centered">
+            <div class="publication-links">
+              <!-- PDF Link. -->
+              <span class="link-block">
+                <a 
+                   class="external-link button is-normal is-rounded is-dark" disabled>
+                  <span class="icon">
+                      <i class="fas fa-file-pdf"></i>
+                  </span>
+                  <span>Paper</span>
+                </a>
+              </span>
+              <!-- <span class="link-block">
+                <a href="."
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="ai ai-arxiv"></i>
+                  </span>
+                  <span>arXiv</span>
+                </a>
+              </span> -->
+              <!-- Video Link. -->
+              <span class="link-block">
+                <a 
+                   class="external-link button is-normal is-rounded is-dark" disabled>
+                  <span class="icon">
+                      <i class="fab fa-youtube"></i>
+                  </span>
+                  <span>Video</span>
+                </a>
+              </span>
+              <!-- Code Link. -->
+              <span class="link-block">
+                <a href="https://github.com/mworchel/neural-deferred-shading"
+                   class="external-link button is-normal is-rounded is-dark">
+                  <span class="icon">
+                      <i class="fab fa-github"></i>
+                  </span>
+                  <span>Code</span>
+                  </a>
+              </span>
+              <!-- Dataset Link. -->
+              <span class="link-block">
+                <a 
+                   class="external-link button is-normal is-rounded is-dark" disabled>
+                  <span class="icon">
+                      <i class="far fa-images"></i>
+                  </span>
+                  <span>Data</span>
+                  </a>
+            </div>
+            <div>
+              (coming soon)
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="hero teaser">
+  <div class="container is-max-desktop">
+    <div class="hero-body">
+      <video id="teaser" autoplay muted loop height="100%">
+        <source src="."
+                type="video/mp4">
+      </video>
+      <h2 class="subtitle has-text-centered">
+        We quickly recover the geometry from calibrated input images with a differentiable mesh renderer based on neural shading.
+      </h2>
+    </div>
+  </div>
+</section>
+
+
+<section class="hero is-light is-small">
+  <div class="hero-body">
+    <div class="container">
+      <div id="results-carousel" class="carousel results-carousel">
+        <div class="item item-skull">
+          <video poster="" id="skull" autoplay controls muted loop height="75%">
+            <source src="./static/videos/reconstruction_skull.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-chair-tp">
+          <video poster="" id="chair-tp" autoplay controls muted loop height="75%">
+            <source src="./static/videos/reconstruction_birds.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-owl">
+          <video poster="" id="owl" autoplay controls muted loop height="100%">
+            <source src="./static/videos/reconstruction_owl.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-snowman">
+          <video poster="" id="snowman" autoplay controls muted loop height="100%">
+            <source src="./static/videos/reconstruction_snowman.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-smurf">
+          <video poster="" id="smurf" autoplay controls muted loop height="100%">
+            <source src="./static/videos/reconstruction_smurf.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+        <div class="item item-buddha">
+          <video poster="" id="buddha" autoplay controls muted loop height="100%">
+            <source src="./static/videos/reconstruction_buddha.mp4"
+                    type="video/mp4">
+          </video>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <!-- Abstract. -->
+    <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">Abstract</h2>
+        <div class="content has-text-justified">
+          <p>
+            We propose an analysis-by-synthesis method for fast multi-view 
+            3D reconstruction of opaque objects with arbitrary materials and illumination. 
+          </p>
+          <p>
+            State-of-the-art methods use both neural surface representations and neural rendering. 
+            While flexible, neural surface representations are a significant bottleneck in optimization runtime.
+            Instead, we represent surfaces as triangle meshes and build a differentiable rendering pipeline around 
+            triangle rasterization and neural shading. The renderer is used in a gradient descent optimization 
+            where both a triangle mesh and a neural shader are jointly optimized to reproduce the multi-view images. 
+          </p>
+          <p>
+            We evaluate our method on a public 3D reconstruction dataset and show that it can 
+            match the reconstruction accuracy of traditional baselines and neural approaches
+            while surpassing them in optimization runtime. Additionally, we investigate the shader 
+            and find that it learns an interpretable representation of appearance, 
+            enabling applications such as 3D material editing.
+          </p>
+        </div>
+      </div>
+    </div>
+    <!--/ Abstract. -->
+
+    <!-- Paper video. -->
+    <!-- <div class="columns is-centered has-text-centered">
+      <div class="column is-four-fifths">
+        <h2 class="title is-3">Video</h2>
+        <div class="publication-video">
+          <iframe src="."
+                  frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+        </div>
+      </div>
+    </div> -->
+    <!--/ Paper video. -->
+  </div>
+</section>
+
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <!-- Concurrent Work. -->
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h2 class="title is-3">Related Links</h2>
+
+        <div class="content has-text-justified">
+          <p>
+            An (incomprehensible) list of excellent concurrent work.
+          </p>
+          <p>
+            <a href="https://nvlabs.github.io/nvdiffrec/">Extracting Triangular 3D Models, Materials, and Lighting From Images</a> uses differentiable meshing to overcome the fixed topology limitation when optimizing triangle meshes.
+          </p>
+          <p>
+            <a href="https://kai-46.github.io/IRON-website/">IRON: Inverse Rendering by Optimizing Neural SDFs and Materials from Photometric Images</a> uses neural materials and a simplified rendering equation for shading.
+          </p>
+        </div>
+      </div>
+    </div>
+    <!--/ Concurrent Work. -->
+
+  </div>
+</section>
+
+<section class="section" id="BibTeX">
+  <div class="container is-max-desktop content">
+    <h2 class="title">BibTeX</h2>
+    <pre><code>@InProceedings{worchel:2022:nds,
+      author    = {Worchel, Markus and Diaz, Rodrigo and Hu, Weiwen and Schreer, Oliver and Feldmann, Ingo and Eisert, Peter},
+      title     = {Multi-View Mesh Reconstruction with Neural Deferred Shading},
+      booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+      month     = {June},
+      year      = {2022}
+  }
+}</code></pre>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container is-max-desktop">
+    <!-- Acknowledgements. -->
+    <div class="columns is-centered">
+      <div class="column is-full-width">
+        <h2 class="title is-3">Acknowledgements</h2>
+
+        <div class="content has-text-justified">
+          <p>
+            This work is part of the <a href="https://invictusproject.eu/">INVICTUS project</a> that has received funding from the European Union’s Horizon 2020 research and innovation programme under grant agreement No 952147.
+          </p>
+        </div>
+      </div>
+    </div>
+    <!--/ Acknowledgements. -->
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="container">
+    <div class="content has-text-centered">
+      <a class="icon-link" href="https://github.com/mworchel" class="external-link" disabled>
+        <i class="fab fa-github"></i>
+      </a>
+    </div>
+    <div class="columns is-centered">
+      <div class="column is-8">
+        <div class="content">
+          <p>
+            Website template from <a href="https://nerfies.github.io/">Nerfies</a>.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
