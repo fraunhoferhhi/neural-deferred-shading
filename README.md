@@ -52,7 +52,7 @@ or for a general scan:
 python reconstruct.py --input_dir ./data/{SCAN-ID}_{SCAN-NAME}/views --input_bbox ./data/{SCAN-ID}_{SCAN-NAME}/bbox.txt
 ```
 
-You will find the output meshes in the directory `./out/{SCAN-ID}_{SCAN-NAME}/meshes.obj`.
+You will find the output meshes in the directory `./out/{SCAN-ID}_{SCAN-NAME}/meshes`.
 
 ## Reconstructing Custom Scenes
 
