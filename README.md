@@ -68,7 +68,8 @@ If you find this code or our method useful for your academic research, please ci
       title     = {Multi-View Mesh Reconstruction with Neural Deferred Shading},
       booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
       month     = {June},
-      year      = {2022}
+      year      = {2022},
+      pages     = {6187-6197}
 }
 ```
 
