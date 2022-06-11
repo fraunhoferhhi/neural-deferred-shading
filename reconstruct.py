@@ -16,8 +16,16 @@ from nds.modules import (
     SpaceNormalization, NeuralShader, ViewSampler
 )
 from nds.utils import (
-    AABB, read_views, read_mesh, write_mesh, visualize_mesh_as_overlay, visualize_views, generate_mesh, mesh_generator_names
+    AABB, read_views, read_mesh, write_mesh, visualize_mesh_as_overlay, visualize_views, generate_mesh, mesh_generator_names, Profiler, NoOpProfiler
 )
+
+def is_time_to_save(current_time, saving_times):
+    if (saving_times is not None) and len(saving_times) > 0:
+        next_time = saving_times[0]
+        if current_time >= next_time:
+            return True, saving_times[1:], current_time, next_time
+        
+    return False, saving_times, 0.0, 0.0
 
 if __name__ == '__main__':
     parser = ArgumentParser(description='Multi-View Mesh Reconstruction with Neural Deferred Shading', formatter_class=ArgumentDefaultsHelpFormatter)
@@ -45,6 +53,8 @@ if __name__ == '__main__':
     parser.add_argument('--fourier_features', type=str, default='positional', choices=(['none', 'gfft', 'positional']), help="Input encoding used in the neural shader")
     parser.add_argument('--activation', type=str, default='relu', choices=(['relu', 'sine']), help="Activation function used in the neural shader")
     parser.add_argument('--fft_scale', type=int, default=4, help="Scale parameter of frequency-based input encodings in the neural shader")
+    parser.add_argument('--profile', default=False, action='store_true', help="Activate profiling mode (no intermediate outputs)")
+    parser.add_argument('--saving_times', type=float, nargs='+', default=[], help="List of time stamps (seconds) after which to save a model")
 
     # Add module arguments
     ViewSampler.add_arguments(parser)
@@ -56,6 +66,10 @@ if __name__ == '__main__':
     if torch.cuda.is_available() and args.device >= 0:
         device = torch.device(f'cuda:{args.device}')
     print(f"Using device {device}")
+
+    # Setup the profiler
+    profiler = Profiler(device=device) if args.profile else NoOpProfiler()
+    profiler.start()
 
     # Create directories
     run_name = args.run_name if args.run_name is not None else args.input_dir.parent.name
@@ -72,27 +86,31 @@ if __name__ == '__main__':
     with open(experiment_dir / "args.txt", "w") as text_file:
         print(f"{args}", file=text_file)
 
-    # Read the views
-    views = read_views(args.input_dir, scale=args.image_scale, device=device)
+    with profiler.record("io") as io_profiler:
+        # Read the views
+        with io_profiler.record("views"):
+            views = read_views(args.input_dir, scale=args.image_scale, device=device)
 
-    # Obtain the initial mesh and compute its connectivity
-    mesh_initial: Mesh = None
-    if args.initial_mesh in mesh_generator_names:
-        # Use args.initial_mesh as mesh generator name
-        if args.input_bbox is None:
-            raise RuntimeError("Generated meshes require a bounding box.")
-        mesh_initial = generate_mesh(args.initial_mesh, views, AABB.load(args.input_bbox), device=device)
-    else:
-        # Use args.initial_mesh as path to the mesh
-        mesh_initial = read_mesh(args.initial_mesh, device=device)
-    mesh_initial.compute_connectivity()
+        # Obtain the initial mesh and compute its connectivity
+        with io_profiler.record("mesh"):
+            mesh_initial: Mesh = None
+            if args.initial_mesh in mesh_generator_names:
+                # Use args.initial_mesh as mesh generator name
+                if args.input_bbox is None:
+                    raise RuntimeError("Generated meshes require a bounding box.")
+                mesh_initial = generate_mesh(args.initial_mesh, views, AABB.load(args.input_bbox), device=device)
+            else:
+                # Use args.initial_mesh as path to the mesh
+                mesh_initial = read_mesh(args.initial_mesh, device=device)
+            mesh_initial.compute_connectivity()
 
-    # Load the bounding box or create it from the mesh vertices
-    if args.input_bbox is not None:
-        aabb = AABB.load(args.input_bbox)
-    else:
-        aabb = AABB(mesh_initial.vertices.cpu().numpy())
-    aabb.save(experiment_dir / "bbox.txt")
+        # Load the bounding box or create it from the mesh vertices
+        with io_profiler.record("aabb"):
+            if args.input_bbox is not None:
+                aabb = AABB.load(args.input_bbox)
+            else:
+                aabb = AABB(mesh_initial.vertices.cpu().numpy())
+            aabb.save(experiment_dir / "bbox.txt")
 
     # Apply the normalizing affine transform, which maps the bounding box to 
     # a 2-cube centered at (0, 0, 0), to the views, the mesh, and the bounding box
@@ -106,8 +124,9 @@ if __name__ == '__main__':
     renderer.set_near_far(views, torch.from_numpy(aabb.corners).to(device), epsilon=0.5)
 
     # Visualize the inputs before optimization
-    visualize_views(views, show=False, save_path=experiment_dir / "views.png")
-    visualize_mesh_as_overlay(renderer, views, mesh_initial, show=False, save_path=experiment_dir / "views_overlay.png")
+    if not args.profile:
+        visualize_views(views, show=False, save_path=experiment_dir / "views.png")
+        visualize_mesh_as_overlay(renderer, views, mesh_initial, show=False, save_path=experiment_dir / "views_overlay.png")
 
     # Configure the view sampler
     view_sampler = ViewSampler(views=views, **ViewSampler.get_parameters(args))
@@ -142,62 +161,78 @@ if __name__ == '__main__':
     for iteration in progress_bar:
         progress_bar.set_description(desc=f'Iteration {iteration}')
 
-        if iteration in args.upsample_iterations:
-            # Upsample the mesh by remeshing the surface with half the average edge length
-            e0, e1 = mesh.edges.unbind(1)
-            average_edge_length = torch.linalg.norm(mesh.vertices[e0] - mesh.vertices[e1], dim=-1).mean()
-            v_upsampled, f_upsampled = remesh_botsch(mesh.vertices.cpu().detach().numpy().astype(np.float64), mesh.indices.cpu().numpy().astype(np.int32), h=float(average_edge_length/2))
-            v_upsampled = np.ascontiguousarray(v_upsampled)
-            f_upsampled = np.ascontiguousarray(f_upsampled)
+        with profiler.record("optimization_loop") as loop_profiler:
+            if iteration in args.upsample_iterations:
+                # Upsample the mesh by remeshing the surface with half the average edge length
+                with loop_profiler.record("mesh_upsampling") as upsampling_profiler:
+                    with upsampling_profiler.record("remeshing"):
+                        e0, e1 = mesh.edges.unbind(1)
+                        average_edge_length = torch.linalg.norm(mesh.vertices[e0] - mesh.vertices[e1], dim=-1).mean()
+                        v_upsampled, f_upsampled = remesh_botsch(mesh.vertices.cpu().detach().numpy().astype(np.float64), mesh.indices.cpu().numpy().astype(np.int32), h=float(average_edge_length/2))
+                        v_upsampled = np.ascontiguousarray(v_upsampled)
+                        f_upsampled = np.ascontiguousarray(f_upsampled)
 
-            mesh_initial = Mesh(v_upsampled, f_upsampled, device=device)
-            mesh_initial.compute_connectivity()
+                    # Adjust weights and step size
+                    loss_weights['laplacian'] *= 4
+                    loss_weights['normal'] *= 4
+                    lr_vertices *= 0.75
 
-            # Adjust weights and step size
-            loss_weights['laplacian'] *= 4
-            loss_weights['normal'] *= 4
-            lr_vertices *= 0.75
+                    with upsampling_profiler.record("reinitialization"):
+                        mesh_initial = Mesh(v_upsampled, f_upsampled, device=device)
+                        mesh_initial.compute_connectivity()
 
-            # Create a new optimizer for the vertex offsets
-            vertex_offsets = torch.zeros_like(mesh_initial.vertices)
-            vertex_offsets.requires_grad = True
-            optimizer_vertices = torch.optim.Adam([vertex_offsets], lr=lr_vertices)
+                        # Create a new optimizer for the vertex offsets
+                        vertex_offsets = torch.zeros_like(mesh_initial.vertices)
+                        vertex_offsets.requires_grad = True
+                        optimizer_vertices = torch.optim.Adam([vertex_offsets], lr=lr_vertices)
 
-        # Deform the initial mesh
-        mesh = mesh_initial.with_vertices(mesh_initial.vertices + vertex_offsets)
+            # Deform the initial mesh
+            with loop_profiler.record("mesh_deformation"):
+                mesh = mesh_initial.with_vertices(mesh_initial.vertices + vertex_offsets)
 
-        # Sample a view subset
-        views_subset = view_sampler(views)
+            # Sample a view subset
+            with loop_profiler.record("view_sampling"):
+                views_subset = view_sampler(views)
 
-        # Render the mesh from the views
-        # Perform antialiasing here because we cannot antialias after shading if we only shade a some of the pixels
-        gbuffers = renderer.render(views_subset, mesh, channels=['mask', 'position', 'normal'], with_antialiasing=True) 
+            # Render the mesh from the views
+            # Perform antialiasing here because we cannot antialias after shading if we only shade a some of the pixels
+            with loop_profiler.record("render_gbuffers") as render_profiler:
+                gbuffers = renderer.render(views_subset, mesh, channels=['mask', 'position', 'normal'], with_antialiasing=True, profiler=render_profiler) 
 
-        # Combine losses and weights
-        if loss_weights['mask'] > 0:
-            losses['mask'] = mask_loss(views_subset, gbuffers)
-        if loss_weights['normal'] > 0:
-            losses['normal'] = normal_consistency_loss(mesh)
-        if loss_weights['laplacian'] > 0:
-            losses['laplacian'] = laplacian_loss(mesh)
-        if loss_weights['shading'] > 0:
-            losses['shading'] = shading_loss(views_subset, gbuffers, shader=shader, shading_percentage=args.shading_percentage)
+            # Combine losses and weights
+            with loop_profiler.record("loss_computation") as loss_profiler:
+                if loss_weights['mask'] > 0:
+                    with loss_profiler.record("mask"):
+                        losses['mask'] = mask_loss(views_subset, gbuffers)
+                if loss_weights['normal'] > 0:
+                    with loss_profiler.record("normal_consistency"):
+                        losses['normal'] = normal_consistency_loss(mesh)
+                if loss_weights['laplacian'] > 0:
+                    with loss_profiler.record("laplacian"):
+                        losses['laplacian'] = laplacian_loss(mesh)
+                if loss_weights['shading'] > 0:
+                    with loss_profiler.record("shading"):
+                        losses['shading'] = shading_loss(views_subset, gbuffers, shader=shader, shading_percentage=args.shading_percentage)
 
-        loss = torch.tensor(0., device=device)
-        for k, v in losses.items():
-            loss += v * loss_weights[k]
+                with loss_profiler.record("aggregation"):
+                    loss = torch.tensor(0., device=device)
+                    for k, v in losses.items():
+                        loss += v * loss_weights[k]
 
-        # Optimize
-        optimizer_vertices.zero_grad()
-        optimizer_shader.zero_grad()
-        loss.backward()
-        optimizer_vertices.step()
-        optimizer_shader.step()
+            # Optimize
+            with loop_profiler.record("gradient_descent") as gd_profiler:
+                optimizer_vertices.zero_grad()
+                optimizer_shader.zero_grad()
+                with gd_profiler.record("backward"):
+                    loss.backward()
+                with gd_profiler.record("step"):
+                    optimizer_vertices.step()
+                    optimizer_shader.step()
 
-        progress_bar.set_postfix({'loss': loss.detach().cpu()})
+            progress_bar.set_postfix({'loss': loss.detach().cpu()})
 
         # Visualizations
-        if (args.visualization_frequency > 0) and shader and (iteration == 1 or iteration % args.visualization_frequency == 0):
+        if not args.profile and (args.visualization_frequency > 0) and shader and (iteration == 1 or iteration % args.visualization_frequency == 0):
             import matplotlib.pyplot as plt
             with torch.no_grad():
                 use_fixed_views = len(args.visualization_views) > 0
@@ -222,11 +257,24 @@ if __name__ == '__main__':
                     normal_image = (0.5*(normal @ debug_view.camera.R.T @ R.T + 1)) * debug_gbuffer["mask"] + (1-debug_gbuffer["mask"])
                     plt.imsave(normal_path / f'neuralshading_{iteration}.png', normal_image.cpu().numpy())
 
-        if (args.save_frequency > 0) and (iteration == 1 or iteration % args.save_frequency == 0):
+        # Save the mesh and the shader at a certain frequency
+        if not args.profile and (args.save_frequency > 0) and (iteration == 1 or iteration % args.save_frequency == 0):
             with torch.no_grad():
                 mesh_for_writing = space_normalization.denormalize_mesh(mesh.detach().to('cpu'))
                 write_mesh(meshes_save_path / f"mesh_{iteration:06d}.obj", mesh_for_writing)                                
             shader.save(shaders_save_path / f'shader_{iteration:06d}.pt')
+
+        # In profiling mode, save the mesh and the shader (approximately) at given times
+        if args.profile and ('optimization_loop' in profiler.measurements):
+            do_save, args.saving_times, actual_time, target_time = is_time_to_save(profiler.measurements['optimization_loop']['total'], args.saving_times)
+            if do_save:
+                with torch.no_grad():
+                    mesh_for_writing = space_normalization.denormalize_mesh(mesh.detach().to('cpu'))
+                    write_mesh(meshes_save_path / f"mesh_{int(round(target_time, 0)):d}s.obj", mesh_for_writing)   
+                shader.save(shaders_save_path / f'shader_{int(round(target_time, 0)):d}s.pt')
+
+    profiler.stop()
+    profiler.export(experiment_dir / "profile.json")
 
     mesh_for_writing = space_normalization.denormalize_mesh(mesh.detach().to('cpu'))
     write_mesh(meshes_save_path / f"mesh_{args.iterations:06d}.obj", mesh_for_writing)

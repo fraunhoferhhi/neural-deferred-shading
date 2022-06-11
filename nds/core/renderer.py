@@ -77,12 +77,16 @@ class Renderer:
         Rt = gl_transform @ Rt
         return projection_matrix @ Rt
 
-    def render(self, views, mesh, channels, with_antialiasing=True):
+    def render(self, views, mesh, channels, with_antialiasing=True, profiler=None):
         """ Render G-buffers from a set of views.
 
         Args:
             views (List[Views]): 
         """
+
+        # Assign a valid profiler
+        from nds.utils import NoOpProfiler
+        profiler = profiler if profiler is not None else NoOpProfiler()
 
         # TODO near far should be passed by view to get higher resolution in depth
         gbuffers = []
@@ -90,26 +94,31 @@ class Renderer:
             gbuffer = {}
 
             # Rasterize only once
-            P = Renderer.to_gl_camera(view.camera, view.resolution, n=self.near, f=self.far)
-            pos = Renderer.transform_pos(P, mesh.vertices)
-            idx = mesh.indices.int()
-            rast, rast_out_db = dr.rasterize(self.glctx, pos, idx, resolution=view.resolution)
+            with profiler.record("rasterization"):
+                P = Renderer.to_gl_camera(view.camera, view.resolution, n=self.near, f=self.far)
+                pos = Renderer.transform_pos(P, mesh.vertices)
+                idx = mesh.indices.int()
+                rast, rast_out_db = dr.rasterize(self.glctx, pos, idx, resolution=view.resolution)
 
             # Collect arbitrary output variables (aovs)
             if "mask" in channels:
-                mask = torch.clamp(rast[..., -1:], 0, 1)
-                gbuffer["mask"] = dr.antialias(mask, rast, pos, idx)[0] if with_antialiasing else mask[0]
+                with profiler.record("mask"):
+                    mask = torch.clamp(rast[..., -1:], 0, 1)
+                    gbuffer["mask"] = dr.antialias(mask, rast, pos, idx)[0] if with_antialiasing else mask[0]
 
             if "position" in channels or "depth" in channels:
-                position, _ = dr.interpolate(mesh.vertices[None, ...], rast, idx)
-                gbuffer["position"] = dr.antialias(position, rast, pos, idx)[0] if with_antialiasing else position[0]
+                with profiler.record("position"):
+                    position, _ = dr.interpolate(mesh.vertices[None, ...], rast, idx)
+                    gbuffer["position"] = dr.antialias(position, rast, pos, idx)[0] if with_antialiasing else position[0]
 
             if "normal" in channels:
-                normal, _ = dr.interpolate(mesh.vertex_normals[None, ...], rast, idx)
-                gbuffer["normal"] = dr.antialias(normal, rast, pos, idx)[0] if with_antialiasing else normal[0]
+                with profiler.record("normal"):
+                    normal, _ = dr.interpolate(mesh.vertex_normals[None, ...], rast, idx)
+                    gbuffer["normal"] = dr.antialias(normal, rast, pos, idx)[0] if with_antialiasing else normal[0]
 
             if "depth" in channels:
-                gbuffer["depth"] = view.project(gbuffer["position"], depth_as_distance=True)[..., 2:3]
+                with profiler.record("depth"):
+                    gbuffer["depth"] = view.project(gbuffer["position"], depth_as_distance=True)[..., 2:3]
 
             gbuffers += [gbuffer]
 

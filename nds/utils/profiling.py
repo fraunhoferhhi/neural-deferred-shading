@@ -31,6 +31,9 @@ class Profiler:
             for k, v in self.measurements.items():
                 self.parent.add_measurement(f"{self.name}.{k}", v) 
 
+    def current(self):
+        return time.perf_counter() - self.start
+
     def __enter__(self):
         self.start()
         return self
