@@ -101,6 +101,10 @@ If you would like to start your reconstruction from a custom initial mesh instea
 
 If you want to tinker with our data loading routines to adapt them to your format, have a look at `nds.utils.io.read_views()` and `nds.core.view.View.load()`.
 
+## Using the Interactive Viewer
+
+We have an interactive viewer to inspect the reconstructed mesh and learned appearance. Code and instructions are released soon.
+
 ## Citation
 
 If you find this code or our method useful for your academic research, please cite our paper
