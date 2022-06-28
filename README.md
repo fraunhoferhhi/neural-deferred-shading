@@ -77,7 +77,11 @@ The main input is a folder with *views*, where each view consists of an RGB(A) i
 
 If present, the alpha channel of the image is used as object mask.
 
-The files `..._k.txt`, `..._r.txt`, and `..._t.txt` contain numpy-readable arrays with the camera pose (R, t) and intrinsics (K) in the **standard OpenCV format**, so K and R are 3x3 matrices and t is a 3-dimensional column vector.
+The files `..._k.txt`, `..._r.txt`, and `..._t.txt` contain numpy-readable arrays with the camera pose (R, t) and intrinsics (K) in the **standard OpenCV format**, so K and R are 3x3 matrices and t is a 3-dimensional column vector, such that
+
+$$ \begin{pmatrix} x & y & 1 \end{pmatrix}^\top \sim \mathbf{K}(\mathbf{R}\begin{pmatrix} X & Y & Z \end{pmatrix}^\top + \mathbf{t}).$$
+
+The image-space coordinates $(x, y)$ are in pixels, so the top left of the image is $(x, y) = (0, 0)$ and the bottom right is $(x, y) = (\text{width}, \text{height})$.
 
 ### Bounding Box (--input_bbox)
 
