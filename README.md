@@ -41,7 +41,7 @@ Follow the instructions at https://github.com/sgsellan/botsch-kobbelt-remesher-l
 
 ## Reconstructing DTU Scans
 
-Download the sample data [here](https://www.dropbox.com/s/x5hrx26l1pmz1id/data.zip) and unzip the content into the main directory. For example, after unzipping you should have the directory `./data/65_skull`. This dataset contains two samples but we will release the full dataset soon.
+Download the data [here](https://www.dropbox.com/s/56ym2qrjfg7jymo/data.zip) and unzip the content into the main directory. For example, after unzipping you should have the directory `./data/65_skull`.
 
 To start the reconstruction for the skull, run:
 ```bash
