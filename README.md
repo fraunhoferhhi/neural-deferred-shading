@@ -81,7 +81,7 @@ The files `..._k.txt`, `..._r.txt`, and `..._t.txt` contain numpy-readable array
 
 $$ \begin{pmatrix} x & y & 1 \end{pmatrix}^\top \sim \mathbf{K}(\mathbf{R}\begin{pmatrix} X & Y & Z \end{pmatrix}^\top + \mathbf{t}).$$
 
-The image-space coordinates $(x, y)$ are in pixels, so the top left of the image is $(x, y) = (0, 0)$ and the bottom right is $(x, y) = (\text{width}, \text{height})$.
+The image-space coordinates (x, y) are in pixels, so the top left of the image is (x, y) = (0, 0) and the bottom right is (x, y) = (width, height).
 
 ### Bounding Box (--input_bbox)
 
