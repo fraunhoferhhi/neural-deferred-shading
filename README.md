@@ -85,7 +85,7 @@ The image-space coordinates (x, y) are in pixels, so the top left of the image i
 
 ### Bounding Box (--input_bbox)
 
-Another input to our pipeline is a bounding box of the scene. The bounding box is described by a single text file, which contains a numpy-readable array of size 2x3. The first row has the xyz coordinates of the minimum point and the second row those of the maximum point. 
+Another input to our pipeline is a bounding box of the scene. The bounding box is described by a single text file, which contains a numpy-readable array of size 2x3. The first row has the world space coordinates of the minimum point and the second row those of the maximum point. 
 
 For example, if the bounding box is a cube with side length 2 centered at (0, 0, 0), then `bbox.txt` would simply contain
 ```bash
