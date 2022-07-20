@@ -128,6 +128,14 @@ The viewer is launched by running the python script `view.py`, providing the mes
 python .\view.py --mesh .\out\65_skull\meshes\mesh_002000.obj --shader .\out\65_skull\shaders\shader_002000.pt --bbox .\out\65_skull\bbox.txt
 ```
 
+## Profiling Mode
+
+For the runtime experiments, we added a profiling mode to our reconstruction script that benchmarks individual parts of the code. Since the profiling mode is rather invasive, we have provided it in a separate `profiling` branch.
+
+The reconstruction can be started in profiling mode by passing the `--profile` flag to `reconstruct.py`.
+
+After reconstruction, the output directory will contain the additional file `profile.json` with the (hierarchical) runtimes.
+
 ## Citation
 
 If you find this code or our method useful for your academic research, please cite our paper
