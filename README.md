@@ -103,7 +103,30 @@ If you want to tinker with our data loading routines to adapt them to your forma
 
 ## Using the Interactive Viewer
 
-We have an interactive viewer to inspect the reconstructed mesh and learned appearance. Code and instructions are released soon.
+We provide an interactive viewer based on OpenGL to inspect the reconstructed meshes and their learned appearance. Before you can launch the viewer, install the additional dependencies with
+
+```bash
+conda activate nds
+pip install glfw==2.5.3 moderngl==5.6.4 pyrr==0.10.3 pyopengl==3.1.6
+```
+
+The `pycuda` dependency needs to be build from source with OpenGL support. In your preferred directory, run
+
+```bash
+git clone --recursive https://github.com/inducer/pycuda.git
+cd pycuda
+git checkout v2022.1
+
+conda activate nds
+python ./configure.py --cuda-enable-gl
+python setup.py install
+```
+
+The viewer is launched by running the python script `view.py`, providing the mesh, the neural shader and a bounding box as input. For example, the reconstruction results for the DTU skull can be viewed by running
+
+```bash
+python .\view.py --mesh .\out\65_skull\meshes\mesh_002000.obj --shader .\out\65_skull\shaders\shader_002000.pt --bbox .\out\65_skull\bbox.txt
+```
 
 ## Citation
 
