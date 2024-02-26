@@ -1,14 +1,11 @@
 from argparse import ArgumentParser
-from PIL import Image
 import numpy as np
 from pathlib import Path
-import torch
 import imageio
-from nds.core import Camera, View
 import cv2
+from tqdm import tqdm
 
-from nds.utils.io import read_views
-from nds.utils.geometry import AABB, normalize_aabb
+from nds.utils.geometry import AABB
 
 def decompose(P):
     K, R, c, _, _, _, _ = cv2.decomposeProjectionMatrix(P)
@@ -18,47 +15,62 @@ def decompose(P):
     K = K / K[2,2]
     return K, R, t
 
-
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("--scan", type=Path, required=True, help="Path to the directory with the IDR scan.")
-    parser.add_argument("--bbox", type=Path, required=True, help="Path to the bounding box file.")
-    parser.add_argument("--view_dir", type=Path, required=True, help="Path to the directory containing the views.")
+    parser.add_argument("input_dir", type=Path, help="Directory containing the DTU data in the IDR format.")
+    parser.add_argument("output_dir", type=Path, help="Output directory for the DTU data in NDS format.")
+    parser.add_argument("--skip_existing", default=False, action='store_true', help="Skip conversion of scans that already exist in the output directory")
     args = parser.parse_args()
-    # Read images from folder
-    image_path = args.scan / 'image'
-    mask_path = args.scan / 'mask'
 
-    image_paths = sorted([path for path in image_path.iterdir() if (path.is_file() and path.suffix == '.png' and not str(path.stem).startswith('.'))])
-    mask_paths = sorted([path for path in mask_path.iterdir() if (path.is_file() and path.suffix == '.png' and not str(path.stem).startswith('.'))])
+    input_dir: Path = args.input_dir
+    output_dir: Path = args.output_dir
 
-    # Read cameras
-    cameras = np.load(args.scan / 'cameras.npz')
+    for scan_dir in [directory for directory in input_dir.iterdir() if directory.is_dir()]:
+        print(f"-- Converting {scan_dir.name}")
 
-    # Make a unit aabb 
-    #! WARNING! This assumes a symmetric bbox (aka cube) if the bbox is not a cube 
-    #! this will not give the bbox back, but something similar
-    bbox = np.array([[-.5, -.5, -.5],
-                    [.5,  .5,  .5]], dtype=np.float32)
+        scan_output_dir = output_dir / scan_dir.name
+        if args.skip_existing and scan_output_dir.exists():
+            print("-- Skipping, because output directory already exists")
+            continue
 
-    args.view_dir.mkdir(parents=True, exist_ok=True)
-    for i, view in enumerate(image_paths):
-        K, R, t = decompose(cameras[f"world_mat_{i}"][:3,:])
-        np.savetxt(args.view_dir / f'cam{i:06d}_r.txt', R, fmt='%.20f')
-        np.savetxt(args.view_dir / f'cam{i:06d}_t.txt', t, fmt='%.20f')
-        np.savetxt(args.view_dir / f'cam{i:06d}_k.txt', K, fmt='%.20f')
+        scan_output_dir.mkdir(parents=True, exist_ok=True)
 
-        A_inv = cameras[f"scale_mat_{i}"]
-        bbox_denormalized = (bbox @ A_inv[:3, :3].T) + A_inv[:3, 3][np.newaxis, :]
+        # Collect the image and mask paths
+        image_dir = scan_dir / 'image'
+        mask_dir  = scan_dir / 'mask'
 
+        image_paths = sorted([path for path in image_dir.iterdir() if (path.is_file() and path.suffix == '.png' and not str(path.stem).startswith('.'))])
+        mask_paths  = sorted([path for path in mask_dir.iterdir() if (path.is_file() and path.suffix == '.png' and not str(path.stem).startswith('.'))])
 
-    aabb = AABB(bbox_denormalized)
-    aabb.save(args.bbox)
-    
-    for idx, (image, mask) in enumerate(zip(image_paths, mask_paths)):
+        # Read cameras
+        cameras = np.load(scan_dir / 'cameras.npz')
 
-        color = np.concatenate((imageio.imread(image),
-                                imageio.imread(mask, pilmode='L')[..., np.newaxis]), 
-                                axis=-1)
-        imageio.imwrite(args.view_dir / f'cam{idx:06d}.png', color)
+        # Make a unit aabb 
+        #! WARNING! This assumes a symmetric bbox (aka cube) if the bbox is not a cube 
+        #! this will not give the bbox back, but something similar
+        bbox = np.array([[-.5, -.5, -.5],
+                         [.5,  .5,  .5]], dtype=np.float32)
 
+        views_output_dir = scan_output_dir / "views"
+        views_output_dir.mkdir(parents=True, exist_ok=True)
+        for i, view in enumerate(image_paths):
+            K, R, t = decompose(cameras[f"world_mat_{i}"][:3,:])
+            np.savetxt(views_output_dir / f'cam{i:06d}_r.txt', R, fmt='%.20f')
+            np.savetxt(views_output_dir / f'cam{i:06d}_t.txt', t, fmt='%.20f')
+            np.savetxt(views_output_dir / f'cam{i:06d}_k.txt', K, fmt='%.20f')
+
+            A_inv = cameras[f"scale_mat_{i}"]
+            bbox_denormalized = (bbox @ A_inv[:3, :3].T) + A_inv[:3, 3][np.newaxis, :]
+
+        # Save the bounding box
+        # NOTE (MW): This assumes that all scale_mats are equal for a scan (which seems to be the case)
+        #            Otherwise we would choose the last one, which seems a bit arbitrary
+        aabb = AABB(bbox_denormalized)
+        aabb.save(scan_output_dir / "bbox.txt")
+        
+        # Convert the images and masks to a single RGBA PNG
+        for idx, (image, mask) in tqdm(enumerate(zip(image_paths, mask_paths)), leave=False):
+            color = np.concatenate((imageio.imread(image),
+                                    imageio.imread(mask, pilmode='L')[..., np.newaxis]), 
+                                    axis=-1)
+            imageio.imwrite(views_output_dir / f'cam{idx:06d}.png', color)
