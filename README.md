@@ -54,6 +54,14 @@ python reconstruct.py --input_dir ./data/{SCAN-ID}_{SCAN-NAME}/views --input_bbo
 
 You will find the output meshes in the directory `./out/{SCAN-ID}_{SCAN-NAME}/meshes`.
 
+### Data Conversion from IDR Format to NDS Format
+
+The DTU dataset in the NDS format is derived from the dataset in IDR format ([found here](https://github.com/lioryariv/idr)), which includes masks for a selection of objects. After downloading the dataset from IDR, you can convert it from the IDR format to the NDS format by calling the import script as:
+
+```bash
+import_dtu_from_idr.py PATH/TO/IDR/DATASET/DIRECTORY PATH/TO/OUTPUT/DIRECTORY
+```
+
 ## Reconstructing Custom Scenes
 
 Our pipeline expects the input data in a specific structure, which you have to follow for your own scenes.
