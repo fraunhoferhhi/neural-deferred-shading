@@ -1,10 +1,34 @@
-# Neural Deferred Shading
+<p align="center">
 
-## [Project Page](https://fraunhoferhhi.github.io/neural-deferred-shading) &nbsp;|&nbsp; [Paper](https://mworchel.github.io/assets/papers/neural_deferred_shading_with_supp.pdf) 
+  <h1 align="center"><a href="https://fraunhoferhhi.github.io/neural-deferred-shading">Multi-View Mesh Reconstruction with Neural Deferred Shading</a></h1>
 
-![alt text](docs/static/images/collection_large_bright_small.jpg)
+  <div align="center">
+  <a href="https://fraunhoferhhi.github.io/neural-deferred-shading">
+    <img src="docs/static/images/collection_large_bright_small.jpg" alt="Logo" width="60%">
+  </a>
+  </div>
 
-Official code for the CVPR 2022 paper "[Multi-View Mesh Reconstruction with Neural Deferred Shading](https://openaccess.thecvf.com/content/CVPR2022/html/Worchel_Multi-View_Mesh_Reconstruction_With_Neural_Deferred_Shading_CVPR_2022_paper.html)", a method for fast multi-view reconstruction with analysis-by-synthesis.
+  <p align="center">
+    <i>IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR) 2022</i>
+    <br />
+    <a href="https://mworchel.github.io/"><strong>Markus Worchel</strong></a>*
+    ·
+    <a href="https://github.com/rodrigodzf"><strong>Rodrigo Diaz</strong></a>*
+    ·
+    <a href="https://www.hhi.fraunhofer.de/en/vit-imc/team/weiwen-hu.html"><strong>Weiwen Hu</strong></a>
+    ·
+    Oliver Schreer
+    ·
+    Ingo Feldmann 
+    ·
+    Peter Eisert 
+  </p>
+  <p align="center">
+   *Equal contribution
+  </p>
+</p>
+
+Official code for the CVPR 2022 paper "[Multi-View Mesh Reconstruction with <b>N</b>eural <b>D</b>eferred <b>S</b>hading](https://openaccess.thecvf.com/content/CVPR2022/html/Worchel_Multi-View_Mesh_Reconstruction_With_Neural_Deferred_Shading_CVPR_2022_paper.html)", a method for fast multi-view reconstruction with analysis-by-synthesis.
 
 ## Installation
 
