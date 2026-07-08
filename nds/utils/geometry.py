@@ -41,8 +41,8 @@ def find_connected_faces(indices):
     face_ids = torch.arange(indices.shape[0])               
     face_ids = torch.repeat_interleave(face_ids, 3, dim=0) # Tensor with the face id for each edge
 
-    face_correspondences = torch.zeros((counts.shape[0], 2), dtype=torch.int64)
-    face_correspondences_indices = torch.zeros(counts.shape[0], dtype=torch.int64)
+    face_correspondences = torch.zeros((counts.shape[0], 2), device=indices.device, dtype=torch.int64)
+    face_correspondences_indices = torch.zeros(counts.shape[0], device=indices.device, dtype=torch.int64)
 
     # ei = edge index
     for ei, ei_unique in enumerate(list(inverse_indices.cpu().numpy())):
@@ -144,7 +144,7 @@ def compute_laplacian_uniform(mesh):
     # i.e. A[i, j] = 1 if (i,j) is an edge, or
     # A[e0, e1] = 1 &  A[e1, e0] = 1
     ones = torch.ones(idx.shape[1], dtype=torch.float32, device=mesh.device)
-    A = torch.sparse.FloatTensor(idx, ones, (V, V))
+    A = torch.sparse_coo_tensor(idx, ones, (V, V))
 
     # the sum of i-th row of A gives the degree of the i-th vertex
     deg = torch.sparse.sum(A, dim=1).to_dense()
@@ -156,13 +156,13 @@ def compute_laplacian_uniform(mesh):
     deg1 = deg[e1]
     deg1 = torch.where(deg1 > 0.0, 1.0 / deg1, deg1)
     val = torch.cat([deg0, deg1])
-    L = torch.sparse.FloatTensor(idx, val, (V, V))
+    L = torch.sparse_coo_tensor(idx, val, (V, V))
 
     # Then we add the diagonal values L[i, i] = -1.
     idx = torch.arange(V, device=mesh.device)
     idx = torch.stack([idx, idx], dim=0)
     ones = torch.ones(idx.shape[1], dtype=torch.float32, device=mesh.device)
-    L -= torch.sparse.FloatTensor(idx, ones, (V, V))
+    L -= torch.sparse_coo_tensor(idx, ones, (V, V))
 
     return L
 
@@ -198,9 +198,9 @@ def marching_cubes(voxel_grid: torch.tensor, voxel_occupancy: torch.tensor, leve
         Array of vertices (Nx3) and face indices (Nx3) of the marching cubes surface.
     """
 
-    from skimage import measure
+    from skimage.measure import marching_cubes
     spacing = (voxel_grid[1, 1, 1] - voxel_grid[0, 0, 0]).cpu().numpy()
-    vertices, faces, normals, values = measure.marching_cubes_lewiner(voxel_occupancy.cpu().numpy(), level=0.5, spacing=spacing, **kwargs)
+    vertices, faces, normals, values = marching_cubes(voxel_occupancy.cpu().numpy(), level=0.5, spacing=spacing, **kwargs)
 
     # Re-center vertices
     vertices += voxel_grid[0, 0, 0].cpu().numpy()

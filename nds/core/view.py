@@ -128,9 +128,9 @@ class View:
         # ensure unique scaling of K matrix
         K = K / K[2,2]
         
-        self.camera.K = torch.from_numpy(K).to(self.device)
-        self.camera.R = torch.from_numpy(R).to(self.device)
-        self.camera.t = torch.from_numpy(t).to(self.device)
+        self.camera.K = torch.from_numpy(K).to(self.device, dtype=self.camera.K.dtype)
+        self.camera.R = torch.from_numpy(R).to(self.device, dtype=self.camera.R.dtype)
+        self.camera.t = torch.from_numpy(t).to(self.device, dtype=self.camera.t.dtype)
         
     def project(self, points, depth_as_distance=False):
         """ Project points to the view's image plane according to the equation x = K*(R*X + t).

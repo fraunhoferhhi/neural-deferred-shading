@@ -2,7 +2,7 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import meshzoo
 import numpy as np
 from pathlib import Path
-from pyremesh import remesh_botsch
+from gpytoolbox import remesh_botsch
 import torch
 from tqdm import tqdm
 
@@ -144,8 +144,9 @@ if __name__ == '__main__':
 
         if iteration in args.upsample_iterations:
             # Upsample the mesh by remeshing the surface with half the average edge length
-            e0, e1 = mesh.edges.unbind(1)
-            average_edge_length = torch.linalg.norm(mesh.vertices[e0] - mesh.vertices[e1], dim=-1).mean()
+            with torch.no_grad():
+                e0, e1 = mesh.edges.unbind(1)
+                average_edge_length = torch.linalg.norm(mesh.vertices[e0] - mesh.vertices[e1], dim=-1).mean()
             v_upsampled, f_upsampled = remesh_botsch(mesh.vertices.cpu().detach().numpy().astype(np.float64), mesh.indices.cpu().numpy().astype(np.int32), h=float(average_edge_length/2))
             v_upsampled = np.ascontiguousarray(v_upsampled)
             f_upsampled = np.ascontiguousarray(f_upsampled)
