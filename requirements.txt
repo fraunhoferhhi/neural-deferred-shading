@@ -1,0 +1,15 @@
+--extra-index-url https://download.pytorch.org/whl/cu126
+
+imageio==2.37.3
+imageio-ffmpeg==0.6.0
+gpytoolbox==0.3.7
+opencv-python==5.0.0.93
+numpy==2.2.6
+matplotlib==3.11.0
+git+https://github.com/mworchel/meshzoo.git
+git+https://github.com/NVlabs/nvdiffrast.git@v0.3.5
+pillow==12.3.0
+scikit-image==0.26.0
+tqdm==4.68.4
+trimesh==4.12.2
+torch==2.13.0+cu126

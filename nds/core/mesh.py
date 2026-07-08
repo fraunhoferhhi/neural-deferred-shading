@@ -84,7 +84,7 @@ class Mesh:
         a = self.vertices[self.indices][:, 0, :]
         b = self.vertices[self.indices][:, 1, :]
         c = self.vertices[self.indices][:, 2, :]
-        self.face_normals = torch.nn.functional.normalize(torch.cross(b - a, c - a), p=2, dim=-1) 
+        self.face_normals = torch.nn.functional.normalize(torch.cross(b - a, c - a, dim=-1), p=2, dim=-1) 
 
         # Compute the vertex normals
         vertex_normals = torch.zeros_like(self.vertices)

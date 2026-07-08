@@ -28,18 +28,26 @@
   </p>
 </p>
 
-Official code for the CVPR 2022 paper "[Multi-View Mesh Reconstruction with <b>N</b>eural <b>D</b>eferred <b>S</b>hading](https://openaccess.thecvf.com/content/CVPR2022/html/Worchel_Multi-View_Mesh_Reconstruction_With_Neural_Deferred_Shading_CVPR_2022_paper.html)", a method for fast multi-view reconstruction with analysis-by-synthesis.
+Official code for the CVPR 2022 paper "[Multi-View Mesh Reconstruction with <b>N</b>eural <b>D</b>eferred <b>S</b>hading](https://openaccess.thecvf.com/content/CVPR2022/html/Worchel_Multi-View_Mesh_Reconstruction_With_Neural_Deferred_Shading_CVPR_2022_paper.html)", a method for fast multi-view reconstruction based on differentiable mesh rendering and neural shading.
 
 ## Installation
 
-Setup the environment and install basic requirements using conda
+Create a virtual environment and install the dependencies using pip:
+
+```bash
+pip install -r requirements.txt
+```
+
+### Alternative: Conda
+
+If you are working with conda, you can directly create an environment named `nds` with all dependencies:
 
 ```bash
 conda env create -f environment.yml
 conda activate nds
 ```
 
-### Nvdiffrast
+<!-- ### Nvdiffrast
 
 To install [Nvdiffrast](https://github.com/NVlabs/nvdiffrast) from source, run the following in the main directory:
 
@@ -47,21 +55,7 @@ To install [Nvdiffrast](https://github.com/NVlabs/nvdiffrast) from source, run t
 git clone https://github.com/NVlabs/nvdiffrast.git
 cd nvdiffrast
 python -m pip install .
-```
-
-### pyremesh
-
-Option 1 (preferred): Install [pyremesh](https://github.com/sgsellan/botsch-kobbelt-remesher-libigl) from pre-built packages in the `pyremesh` subdirectory.
-
-From the main directory, run:
-
-```bash
-python -m pip install --no-index --find-links ./ext/pyremesh pyremesh
-```
-
-Option 2: Install pyremesh from source.
-
-Follow the instructions at https://github.com/sgsellan/botsch-kobbelt-remesher-libigl.
+``` -->
 
 ## Reconstructing DTU Scans
 
@@ -191,8 +185,8 @@ The reconstruction can be quite heavy on GPU memory and in our experiments we us
 
 The memory usage can be reduced by reconstructing with a smaller image resolution. Try passing `--image_scale 2` or `--image_scale 4` to `reconstruct.py`, which uses 1/2th or 1/4th of the original resolution. Expect lower memory consumption and better runtime but degraded reconstruction accuracy.
 
-### Reconstruction Hangs at Remeshing
+### Remeshing hangs or produces NaNs
 
-While the remeshing step can take some time especially at higher mesh resolutions, it sometimes hangs indefinitely. This issue comes from calling the function `remesh_botsch` in the `pyremesh` package, which does not return.
+Remeshing can take some time especially at higher mesh resolutions, but it sometimes hangs indefinitely (the function `remesh_botsch` never returns) or it produces NaN vertex positions. 
 
 For now, the reconstruction has to be aborted and restarted.

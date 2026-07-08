@@ -16,5 +16,5 @@ def denormalize_coords(coords, width, height):
 
 def sample(image, pixel_coords):
     coordinates = normalize_coords(pixel_coords[..., :2], image.shape[1], image.shape[0]).to(image.device)
-    samples = torch.nn.functional.grid_sample(image.permute(2, 0, 1).unsqueeze(0), coordinates.unsqueeze(0))
+    samples = torch.nn.functional.grid_sample(image.permute(2, 0, 1).unsqueeze(0), coordinates.unsqueeze(0), align_corners=False)
     return samples.squeeze(0).permute(1, 2, 0)
