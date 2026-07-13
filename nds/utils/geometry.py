@@ -25,31 +25,53 @@ def find_edges(indices, remove_duplicates=True):
 
     return edges
 
-def find_connected_faces(indices):
+def find_connected_faces(indices: torch.Tensor, use_legacy_impl: bool = False):
     edges = find_edges(indices, remove_duplicates=False)
 
-    # Make sure that two edges that share the same vertices have the vertex ids appear in the same order
+    # Find unique edges (i.e., with the same vertices) and ensure manifoldness (no more than two faces share the same edge)
     edges, _ = torch.sort(edges, dim=1)
-
-    # Now find edges that share the same vertices and make sure there are only manifold edges
-    _, inverse_indices, counts = torch.unique(edges, dim=0, sorted=False, return_inverse=True, return_counts=True)
+    _, unique_index, counts = torch.unique(edges, dim=0, sorted=False, return_inverse=True, return_counts=True)
     assert counts.max() == 2
 
-    # We now create a tensor that contains corresponding faces.
-    # If the faces with ids fi and fj share the same edge, the tensor contains them as
-    # [..., [fi, fj], ...]
-    face_ids = torch.arange(indices.shape[0])               
-    face_ids = torch.repeat_interleave(face_ids, 3, dim=0) # Tensor with the face id for each edge
+    if use_legacy_impl:
+        # Legacy implementation that uses a Python loop
 
-    face_correspondences = torch.zeros((counts.shape[0], 2), device=indices.device, dtype=torch.int64)
-    face_correspondences_indices = torch.zeros(counts.shape[0], device=indices.device, dtype=torch.int64)
+        # We now create a tensor that contains corresponding faces.
+        # If the faces with ids fi and fj share the same edge, the tensor contains them as
+        # [..., [fi, fj], ...]
+        face_ids = torch.arange(indices.shape[0])               
+        face_ids = torch.repeat_interleave(face_ids, 3, dim=0) # Tensor with the face id for each edge
 
-    # ei = edge index
-    for ei, ei_unique in enumerate(list(inverse_indices.cpu().numpy())):
-        face_correspondences[ei_unique, face_correspondences_indices[ei_unique]] = face_ids[ei] 
-        face_correspondences_indices[ei_unique] += 1
+        face_correspondences = torch.zeros((counts.shape[0], 2), device=indices.device, dtype=torch.int64)
+        face_correspondences_indices = torch.zeros(counts.shape[0], device=indices.device, dtype=torch.int64)
 
-    return face_correspondences[counts == 2].to(device=indices.device)
+        # ei = edge index
+        for ei, ei_unique in enumerate(list(unique_index.cpu().numpy())):
+            face_correspondences[ei_unique, face_correspondences_indices[ei_unique]] = face_ids[ei] 
+            face_correspondences_indices[ei_unique] += 1
+
+        return face_correspondences[counts == 2].to(device=indices.device)
+    else:
+        # Vectorized implementation
+
+        # The following code creates the array that contains the ids of the faces that share an edge,
+        # i.e., if faces `fi` and `fj` share an edge, the array contains [..., [fi, fj], ...].
+        #
+        # The general idea is to first assign each (half) edge its face id, and then 
+        # re-arrange this list such that face ids for the same unique edge appear consecutively.
+        # We can then simply mask out the entries for edges shared by two faces and reshape the result.
+        face_ids = torch.arange(indices.shape[0], device=indices.device)
+        face_ids = torch.repeat_interleave(face_ids, 3, dim=0) # Tensor with the face id for each (half) edge   
+
+        # Group the (up to two) faces that reference the same unique edge. 
+        grouped_unique_index, order = torch.sort(unique_index)
+        grouped_face_ids = face_ids[order]
+
+        # Determine whether each group should be kept (i.e., the edge is shared by two faces)
+        shared_unique_edges_mask = counts == 2
+        grouped_shared_half_edges_mask = shared_unique_edges_mask[grouped_unique_index]
+        
+        return grouped_face_ids[grouped_shared_half_edges_mask].reshape(-1, 2)
 
 class AABB:
     def __init__(self, points):
