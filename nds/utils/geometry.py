@@ -73,6 +73,50 @@ def find_connected_faces(indices: torch.Tensor, use_legacy_impl: bool = False):
         
         return grouped_face_ids[grouped_shared_half_edges_mask].reshape(-1, 2)
 
+def collapse_zero_area_triangles(v: np.ndarray, f: np.ndarray):
+    v_tri = v[f]
+    cross_products = np.cross(v_tri[:, 1] - v_tri[:, 0], v_tri[:, 2] - v_tri[:, 0])
+    triangle_areas = 0.5 * np.linalg.norm(cross_products, axis=-1)
+    zero_area_mask = triangle_areas == 0.0 # TODO: Maybe replace with a small threshold. 
+    
+    if not np.any(zero_area_mask):
+        return f #, 0
+
+    f_zero_area = f[zero_area_mask]
+    f_zero_area_ordered = np.sort(f_zero_area, axis=1)
+
+    # Build remapping pairs (source_vertex, target_vertex) for collapsing vertices in zero-area triangles
+    # Example: [[1, 0], [2, 0], [2, 1], [5, 0], [5, 1]]
+    vertex_remap_pairs = np.concatenate([f_zero_area_ordered[:, [1, 0]], f_zero_area_ordered[:, [2, 0]]], axis=0)
+
+    # Zero-area triangles may share vertices, and the same vertex may be marked as collapsing to different target vertices. Therefore:
+
+    # 1) Remove duplicates (note that the pairs are sorted on axis 1 because the zero-area faces were sorted above)
+    vertex_remap_pairs = np.unique(vertex_remap_pairs, axis=0) 
+
+    # 2) Pick the mapping with the lowest target vertex index (= the first entry for a source vertex after lexsort)
+    order = np.lexsort((vertex_remap_pairs[:, 1], vertex_remap_pairs[:, 0]))
+    vertex_remap_pairs = vertex_remap_pairs[order]
+    _, counts = np.unique(vertex_remap_pairs[:, 0], return_counts=True)
+    first_entry_index = np.concatenate([[0], np.cumsum(counts[:-1])])
+    vertex_remap_pairs = vertex_remap_pairs[first_entry_index]
+
+    # The remaining problem is a chain of remappings, e.g. 3 -> 2, 2 -> 1, 1 -> 0, which should be resolved to 2 -> 0. 
+    # This is done by applying the remapping until no changes occur.
+    vertex_remap = np.arange(v.shape[0], dtype=f.dtype)
+    vertex_remap[vertex_remap_pairs[:, 0]] = vertex_remap_pairs[:, 1]
+
+    vertex_remap_changed = True
+    while vertex_remap_changed:
+        new_vertex_remap = vertex_remap[vertex_remap]
+        vertex_remap_changed = not np.array_equal(new_vertex_remap, vertex_remap)
+        vertex_remap = new_vertex_remap
+
+    # Remap vertices and remove collapsed faces
+    f_remapped = vertex_remap[f[~zero_area_mask]]
+
+    return f_remapped # , zero_area_mask.sum()
+
 class AABB:
     def __init__(self, points):
         """ Construct the axis-aligned bounding box from a set of points.

@@ -16,7 +16,7 @@ from nds.modules import (
     SpaceNormalization, NeuralShader, ViewSampler
 )
 from nds.utils import (
-    AABB, read_views, read_mesh, write_mesh, visualize_mesh_as_overlay, visualize_views, generate_mesh, mesh_generator_names
+    AABB, read_views, read_mesh, write_mesh, visualize_mesh_as_overlay, visualize_views, generate_mesh, mesh_generator_names, collapse_zero_area_triangles
 )
 
 if __name__ == '__main__':
@@ -147,7 +147,15 @@ if __name__ == '__main__':
             with torch.no_grad():
                 e0, e1 = mesh.edges.unbind(1)
                 average_edge_length = torch.linalg.norm(mesh.vertices[e0] - mesh.vertices[e1], dim=-1).mean()
-            v_upsampled, f_upsampled = remesh_botsch(mesh.vertices.cpu().detach().numpy().astype(np.float64), mesh.indices.cpu().numpy().astype(np.int32), h=float(average_edge_length/2))
+            
+            v_before_upsampling = mesh.vertices.detach().cpu().numpy().astype(np.float64)
+            f_before_upsampling = mesh.indices.cpu().numpy().astype(np.int32)
+
+            # On rare occasions, the mesh contains zero-area triangles, which causes remeshing to fail or return NaN vertices. 
+            # So we collapse these triangles.
+            f_before_upsampling = collapse_zero_area_triangles(v_before_upsampling, f_before_upsampling)
+
+            v_upsampled, f_upsampled = remesh_botsch(v_before_upsampling, f_before_upsampling, h=float(average_edge_length/2))
             v_upsampled = np.ascontiguousarray(v_upsampled)
             f_upsampled = np.ascontiguousarray(f_upsampled)
 
